@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>Split Layout Barcode App</title>
+  <script src="https://unpkg.com/quagga/dist/quagga.min.js"></script>
+
+  <style>
+    body {
+      margin: 0;
+      font-family: sans-serif;
+      display: flex;
+      height: 100vh;
+    }
+
+    /* 左：カメラ */
+    #left {
+      flex: 1;
+      background: #000;
+      position: relative;
+    }
+
+    #video {
+      width: 100%;
+      height: 100%;
+    }
+
+    /* Quaggaのoverlay対策 */
+    canvas.drawingBuffer {
+      position: absolute;
+      top: 0;
+      left: 0;
+      pointer-events: none;
+    }
+
+    /* 右：UI */
+    #right {
+      width: 300px;
+      padding: 20px;
+      background: #f5f5f5;
+      overflow-y: auto;
+    }
+
+    button {
+      width: 100%;
+      padding: 10px;
+      margin-bottom: 10px;
+    }
+
+    #live {
+      margin-bottom: 20px;
+      font-size: 18px;
+      color: green;
+    }
+
+    li {
+      font-size: 14px;
+      margin-bottom: 5px;
+    }
+  </style>
+</head>
+<body>
+
+<!-- 左：カメラ -->
+<div id="left">
+  <div id="video"></div>
+</div>
+
+<!-- 右：UI -->
+<div id="right">
+  <h3>Live</h3>
+  <div id="live">-</div>
+
+  <button id="capture">Capture</button>
+
+  <h3>Captured</h3>
+  <ul id="list"></ul>
+</div>
+
+<script>
+let lastDetected = null;
+let history = [];
+
+// 初期化
+Quagga.init({
+  inputStream: {
+    type: "LiveStream",
+    target: document.querySelector('#video'),
+    constraints: {
+      facingMode: "environment"
+    }
+  },
+  decoder: {
+    readers: ["ean_reader", "ean_8_reader", "code_128_reader"]
+  }
+}, function(err) {
+  if (err) {
+    console.error(err);
+    return;
+  }
+  Quagga.start();
+});
+
+// リアルタイム検出
+Quagga.onDetected(function(result) {
+  const code = result.codeResult.code;
+
+  if (code !== lastDetected) {
+    lastDetected = code;
+    document.getElementById("live").textContent = code;
+  }
+});
+
+// キャプチャ
+document.getElementById('capture').addEventListener('click', () => {
+  if (!lastDetected) return;
+
+  history.push(lastDetected);
+
+  const li = document.createElement("li");
+  li.textContent = lastDetected;
+  document.getElementById("list").appendChild(li);
+});
+</script>
+
+</body>
+</html>
