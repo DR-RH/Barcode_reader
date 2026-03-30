@@ -1,12 +1,14 @@
 <!DOCTYPE html>
 <html lang="ja">
+
 <head>
   <meta charset="UTF-8">
   <title>Mobile Barcode App</title>
   <script src="https://unpkg.com/quagga/dist/quagga.min.js"></script>
 
   <style>
-    html, body {
+    html,
+    body {
       margin: 0;
       padding: 0;
       height: 100%;
@@ -78,72 +80,121 @@
     }
   </style>
 </head>
+
 <body>
 
-<div id="container">
+  <div id="container">
 
-  <!-- 枠1 -->
-  <div id="top">
-    <div id="video"></div>
+    <!-- 枠1 -->
+    <div id="top">
+      <div id="video"></div>
 
-    <div id="controls">
-      <div id="live">-</div>
-      <button id="capture">Capture</button>
+      <div id="controls">
+        <div id="live">-</div>
+
+
+        <div style="display:flex; justify-content:center; align-items:center; gap:10px;">
+          <button id="capture">Capture</button>
+          <span id="copied" style="color:#00ff88; font-size:14px;"></span>
+
+        </div>
+      </div>
     </div>
+
+    <!-- 枠2 -->
+    <div id="bottom">
+      <ul id="list"></ul>
+    </div>
+
   </div>
 
-  <!-- 枠2 -->
-  <div id="bottom">
-    <ul id="list"></ul>
-  </div>
+  <script>
+    let lastDetected = null;
+    let history = [];
+    let copiedTimer = null;
 
-</div>
-
-<script>
-let lastDetected = null;
-let history = [];
-
-// 初期化
-Quagga.init({
-  inputStream: {
-    type: "LiveStream",
-    target: document.querySelector('#video'),
-    constraints: {
-      facingMode: "environment"
+    // コピー処理
+    function copyToClipboard(text) {
+      if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(text).catch(() => fallbackCopy(text));
+      } else {
+        fallbackCopy(text);
+      }
     }
-  },
-  decoder: {
-    readers: ["ean_reader", "ean_8_reader", "code_128_reader"]
-  }
-}, function(err) {
-  if (err) {
-    console.error(err);
-    return;
-  }
-  Quagga.start();
-});
 
-// リアルタイム表示
-Quagga.onDetected(function(result) {
-  const code = result.codeResult.code;
+    function fallbackCopy(text) {
+      const textarea = document.createElement("textarea");
+      textarea.value = text;
+      textarea.style.position = "fixed";
+      textarea.style.opacity = "0";
+      document.body.appendChild(textarea);
+      textarea.focus();
+      textarea.select();
+      document.execCommand("copy");
+      document.body.removeChild(textarea);
+    }
 
-  if (code !== lastDetected) {
-    lastDetected = code;
-    document.getElementById("live").textContent = code;
-  }
-});
+    // copied表示制御
+    function showCopied() {
+      const el = document.getElementById("copied");
+      el.textContent = "Copied";
 
-// キャプチャ
-document.getElementById('capture').addEventListener('click', () => {
-  if (!lastDetected) return;
+      if (copiedTimer) {
+        clearTimeout(copiedTimer);
+      }
 
-  history.push(lastDetected);
+      copiedTimer = setTimeout(() => {
+        el.textContent = "";
+      }, 1500);
+    }
 
-  const li = document.createElement("li");
-  li.textContent = lastDetected;
-  document.getElementById("list").appendChild(li);
-});
-</script>
+    // 初期化
+    Quagga.init({
+      inputStream: {
+        type: "LiveStream",
+        target: document.querySelector('#video'),
+        constraints: {
+          facingMode: "environment"
+        }
+      },
+      decoder: {
+        readers: ["ean_reader", "ean_8_reader", "code_128_reader"]
+      }
+    }, function (err) {
+      if (err) {
+        console.error(err);
+        return;
+      }
+      Quagga.start();
+    });
+
+    // リアルタイム表示
+    Quagga.onDetected(function (result) {
+      const code = result.codeResult.code;
+
+      if (code !== lastDetected) {
+        lastDetected = code;
+        document.getElementById("live").textContent = code;
+      }
+    });
+
+    // Capture
+    document.getElementById('capture').addEventListener('click', () => {
+      if (!lastDetected) return;
+
+      const value = lastDetected; // ← 固定（重要）
+      history.push(value);
+
+      const li = document.createElement("li");
+      li.textContent = value;
+      document.getElementById("list").appendChild(li);
+
+      // コピー
+      copyToClipboard(value);
+      showCopied();
+    });
+  </script>
 
 </body>
+
 </html>
